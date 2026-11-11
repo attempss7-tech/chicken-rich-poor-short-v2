@@ -26,7 +26,17 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm install --no-save playwright@1.49.1
-      - run: npx playwright install --with-deps chromium
+      # --with-deps runs apt against Ubuntu archives; runner DNS to those
+      # archives can fail transiently (both v2 shards died here 2026-11-11).
+      # Retry it, then fall back to the browser binary only.
+      - run: |
+          for i in 1 2 3; do
+            if npx playwright install --with-deps chromium; then exit 0; fi
+            echo "playwright install attempt $i failed, retrying in 60s"
+            sleep 60
+          done
+          echo "with-deps failed 3x; falling back to browser binary only"
+          npx playwright install chromium
       - name: Set CHROME_PATH to installed Chromium
         run: |
           ls ~/.cache/ms-playwright/
